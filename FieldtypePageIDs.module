@@ -1,0 +1,255 @@
+<?php namespace ProcessWire;
+
+/**
+ * Page IDs Fieldtype for ProcessWire CMS/CMF
+ *
+ * Field that stores Page IDs as simple, numeric values. See README.md for more
+ * details.
+ * 
+ * For documentation about the fields used in this class, please see:  
+ * /wire/core/Fieldtype.php
+ * 
+ * @copyright 2018 Teppo Koivula
+ * @license http://www.gnu.org/licenses/gpl-2.0.txt GNU General Public License, version 2
+ */
+class FieldtypePageIDs extends FieldtypeMulti {
+
+    /**
+     * Return information about this module
+     * 
+     * @return array
+     */
+    public static function getModuleInfo() {
+        return [
+            'title' => 'Page IDs',
+            'summary' => 'Field that stores Page IDs',
+            'author' => 'Teppo Koivula',
+            'version' => '0.6.1',
+            'requires' => 'ProcessWire>=3.0.98',
+        ];
+    }
+
+    /**
+     * Initialize this Fieldtype
+     *
+     */
+    public function init() {
+        parent::init();
+        $dir = dirname(__FILE__);
+        require_once(__DIR__ . "/PageID.php"); 
+    }
+
+	/**
+	 * Default inputfield
+	 * 
+	 * @var string
+	 */
+	protected $defaultInputfield = 'InputfieldAsmSelect';
+    
+    /**
+     * Supported inputfields
+     * 
+     * @var array
+     */
+    protected $supportedInputfields = [
+        'InputfieldAsmSelect',
+        'InputfieldCheckboxes',
+        'InputfieldText',
+    ];
+    
+    /**
+     * Config inputfields for field settings
+     * 
+     * @param Field $field
+	 * @return InputfieldWrapper
+     */
+    public function ___getConfigInputfields(Field $field) {
+        
+        $inputfields = parent::___getConfigInputfields($field);
+        
+        $f = $this->modules->get("InputfieldText");
+        $f->name = "findPagesSelector";
+        $f->label = $this->_("Selector string");
+        $f->value = $field->{$f->name};
+        $inputfields->append($f);
+        
+        $f = $this->modules->get("InputfieldSelect");
+        $f->name = "inputfield";
+        $f->label = $this->_("Input field type");
+        foreach ($this->supportedInputfields as $inputfield) {
+            $f->addOption($inputfield, $inputfield);
+        }
+        $f->value = $field->{$f->name} ?: $this->defaultInputfield;
+        $inputfields->append($f);
+        
+        return $inputfields;
+        
+    }
+    
+    /**
+     * Get a blank value for this fieldtype
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @return array
+     */
+    public function getBlankValue(Page $page, Field $field) {
+        return $this->wire(new WireArray());
+    }
+
+    /**
+	 * Per the Fieldtype interface, sanitize the combined value for use in a Page
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @param mixed $value
+     * @return array
+     */
+    public function sanitizeValue(Page $page, Field $field, $value) {
+
+        $out = $this->getBlankValue($page, $field);
+        
+        if (is_array($value) || $value instanceof WireArray) {
+            foreach ($value as $key => $item) {
+                // if item is an integer ...
+                if (is_int($item)) $item = $this->pages->get($item);
+                // if item is an instance of PageID with an integer value ...
+                if ($item instanceof PageID && is_int($item->value)) $item = $this->pages->get($item->value);
+                // if at this point item is a Page object, we can validate it
+                if ($item instanceof Page) {
+                    if (!$field->selector || $this->pages->count($field->selector . ", id=" . $item->id)) {
+                        $out->add($this->getSingleValue($field, $item->id));
+                    }
+                }
+            }
+        }
+        
+        return $out;
+        
+    }
+    
+    /**
+     * Get single value object
+     * 
+     * @param Field $field
+     * @param mixed $value
+     */
+    public function getSingleValue(Field $field, $value) {
+        $out = new PageID;
+        $out->value = $value !== null ? (int) $value : null;
+        return $out;
+    }
+    
+    /**
+     * Process the value to convert it from an array to a WireArray containing
+     * PageID objects
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @param array $value
+     * @return WireArray
+     */
+    public function ___wakeupValue(Page $page, Field $field, $value) {
+        $out = $this->getBlankValue($page, $field);
+        foreach ($value as $val) {
+            $out->add($this->getSingleValue($field, $val));
+        }
+        return $out;
+    }
+    
+    /**
+	 * Given an 'awake' value, as set by wakeupValue, convert the value back
+     * to a basic array for database storage
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @param WireArray $value
+     * @return array
+     */
+    public function ___sleepValue(Page $page, Field $field, $value) {
+        $out = [];
+        foreach ($value as $item) {
+            if ($item instanceof PageID) {
+                $item = (int) $item->value;
+            }
+            if (is_int($item) && $item) {
+                $out[] = $item;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Format the value of the current field for output
+     *
+     * Note: this method is only used when output formatting is enabled.
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @param array $value
+     */
+    public function ___formatValue(Page $page, Field $field, $value) {
+        foreach ($value as $key => $item) {
+            if (!is_int($item)) continue;
+            $page = $this->pages->get($item);
+            if ($page) {
+                $value[$key] = $page;
+            } else {
+                unset($value[$key]);
+            }
+        }
+        return $value;
+    }
+    
+    /**
+     * Return an Inputfield for editing the value of current field
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @return Inputfield
+     */
+    public function getInputfield(Page $page, Field $field) {
+        $inputfield_class = $field->get('inputfield');
+        if (!$inputfield_class || !in_array($inputfield_class, $this->supportedInputfields)) {
+            $inputfield_class = $this->defaultInputfield;
+        }
+        $inputfield = $this->modules->get($inputfield_class);
+        if ($inputfield) {
+            $selector = $field->get('findPagesSelector');
+            if ($selector && method_exists($inputfield, 'addOption')) {
+                foreach (wire('pages')->find($selector) as $item) {
+                    $inputfield->addOption($item->id, $item->title);
+                }
+            }
+        }
+        return $inputfield; 
+    }
+    
+    /**
+     * Get the database schema for this fieldtype
+     * 
+     * @param Field $field
+     * @return array
+     */
+    public function getDatabaseSchema(Field $field) {
+        $schema = parent::getDatabaseSchema($field);
+        $schema['data'] = 'int NOT NULL';
+        $schema['keys']['data'] = 'KEY data (data, pages_id, sort)';
+        return $schema;
+    }
+    
+    /**
+     * Get Fieldtypes compatible with this one
+     * 
+	 * Returns a Fieldtypes object populated by fieldtypes that are compatible
+     * with this one (i.e. ones the user may change the type to).
+     * 
+     * @param Field $field
+     * @return Fieldtypes
+     */
+    public function ___getCompatibleFieldtypes(Field $field) {
+        $fieldtypes = new Fieldtypes();
+        return $fieldtypes;
+    }
+
+}
