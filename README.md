@@ -12,7 +12,7 @@ currently supported, and so on.
 
 ## Getting started
 
-Note: this module requires ProcessWire >= 3.0.
+Note: this module requires ProcessWire >= 3.0.98.
 
 Clone or download the module's directory to /site/modules/, go to Admin >
 Modules, hit "Check for new modules", and install Fieldtype Page IDs.
