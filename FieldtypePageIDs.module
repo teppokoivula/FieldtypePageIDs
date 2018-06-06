@@ -24,7 +24,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
             'title' => 'Page IDs',
             'summary' => 'Field that stores Page IDs',
             'author' => 'Teppo Koivula',
-            'version' => '0.6.1',
+            'version' => '0.7.0',
             'requires' => 'ProcessWire>=3.0.98',
         ];
     }
@@ -108,11 +108,19 @@ class FieldtypePageIDs extends FieldtypeMulti {
     public function sanitizeValue(Page $page, Field $field, $value) {
 
         $out = $this->getBlankValue($page, $field);
+
+        if (is_string($value) || is_int($value)) {
+            if (strpos($value, "|")) {
+                $value = explode("|", $value);
+            } else {
+                $value = [$value];
+            }
+        }
         
         if (is_array($value) || $value instanceof WireArray) {
             foreach ($value as $key => $item) {
-                // if item is an integer ...
-                if (is_int($item)) $item = $this->pages->get($item);
+                // if item is an integer or a string with integer value ...
+                if (is_int($item) || is_string($item) && (int) $item == $item) $item = $this->pages->get($item);
                 // if item is an instance of PageID with an integer value ...
                 if ($item instanceof PageID && is_int($item->value)) $item = $this->pages->get($item->value);
                 // if at this point item is a Page object, we can validate it
