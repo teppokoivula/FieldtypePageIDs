@@ -24,7 +24,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
             'title' => 'Page IDs',
             'summary' => 'Field that stores Page IDs',
             'author' => 'Teppo Koivula',
-            'version' => '0.7.0',
+            'version' => '0.8.0',
             'requires' => 'ProcessWire>=3.0.98',
         ];
     }
@@ -109,12 +109,18 @@ class FieldtypePageIDs extends FieldtypeMulti {
 
         $out = $this->getBlankValue($page, $field);
 
+        // string or integer values: sanitize and convert to an array
         if (is_string($value) || is_int($value)) {
             if (strpos($value, "|")) {
                 $value = explode("|", $value);
             } else {
                 $value = [$value];
             }
+        }
+        
+        // Page object: enclose in an array
+        if ($value instanceof Page) {
+            $value = [$value];
         }
         
         if (is_array($value) || $value instanceof WireArray) {
