@@ -24,7 +24,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
             'title' => 'Page IDs',
             'summary' => 'Field that stores Page IDs',
             'author' => 'Teppo Koivula',
-            'version' => '0.9.0',
+            'version' => '0.10.0',
             'requires' => 'ProcessWire>=3.0.98',
         ];
     }
@@ -54,6 +54,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
     protected $supportedInputfields = [
         'InputfieldAsmSelect',
         'InputfieldCheckboxes',
+        'InputfieldPageAutocomplete',
         'InputfieldText',
     ];
     
@@ -170,8 +171,10 @@ class FieldtypePageIDs extends FieldtypeMulti {
      */
     public function ___wakeupValue(Page $page, Field $field, $value) {
         $out = $this->getBlankValue($page, $field);
-        foreach ($value as $val) {
-            $out->add($this->getSingleValue($field, $val));
+        if (!empty($value)) {
+            foreach ($value as $val) {
+                $out->add($this->getSingleValue($field, $val));
+            }
         }
         return $out;
     }
@@ -233,9 +236,16 @@ class FieldtypePageIDs extends FieldtypeMulti {
             $inputfield_class = $this->defaultInputfield;
         }
         $inputfield = $this->modules->get($inputfield_class);
-        if ($inputfield) {
+        if ($inputfield instanceof InputfieldPageAutocomplete) {
+            $inputfield->set('value', explode("|", (string) $page->get($field->name)));
+            // note: we can't see to completely override the value, so it will
+            // contain a WireArray as its last argument; remove it with a hook
+            $inputfield->addHookBefore('renderList', function(HookEvent $event) {
+                $event->object->value = array_splice($event->object->value, 0, -1);
+            });
+        } else if (method_exists($inputfield, 'addOption')) {
             $selector = $this->getSelector($page, $field, 'getInputfield');
-            if ($selector && method_exists($inputfield, 'addOption')) {
+            if ($selector) {
                 foreach (wire('pages')->find($selector) as $item) {
                     $inputfield->addOption($item->id, $item->title);
                 }
