@@ -240,8 +240,8 @@ class FieldtypePageIDs extends FieldtypeMulti {
         $inputfield = $this->modules->get($inputfield_class);
         if ($inputfield instanceof InputfieldPageAutocomplete) {
             $inputfield->set('value', explode("|", (string) $page->get($field->name)));
-            // note: we can't see to completely override the value, so it will
-            // contain a WireArray as its last argument; remove it with a hook
+            // note: we can't seem to completely override the value, so it will
+            // contain a WireArray as its last argument; remove it with a hook:
             $inputfield->addHookBefore('renderList', function(HookEvent $event) {
                 $event->object->value = array_splice($event->object->value, 0, -1);
             });
