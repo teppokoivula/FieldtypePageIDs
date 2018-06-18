@@ -24,7 +24,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
             'title' => 'Page IDs',
             'summary' => 'Field that stores Page IDs',
             'author' => 'Teppo Koivula',
-            'version' => '0.8.0',
+            'version' => '0.9.0',
             'requires' => 'ProcessWire>=3.0.98',
         ];
     }
@@ -124,6 +124,10 @@ class FieldtypePageIDs extends FieldtypeMulti {
         }
         
         if (is_array($value) || $value instanceof WireArray) {
+            
+            // Selector for validating items
+            $selector = $this->getSelector($page, $field, 'sanitizeValue');
+            
             foreach ($value as $key => $item) {
                 // if item is an integer or a string with integer value ...
                 if (is_int($item) || is_string($item) && (int) $item == $item) $item = $this->pages->get($item);
@@ -131,11 +135,12 @@ class FieldtypePageIDs extends FieldtypeMulti {
                 if ($item instanceof PageID && is_int($item->value)) $item = $this->pages->get($item->value);
                 // if at this point item is a Page object, we can validate it
                 if ($item instanceof Page) {
-                    if (!$field->selector || $this->pages->count($field->selector . ", id=" . $item->id)) {
+                    if (!$selector || $item->is($selector)) {
                         $out->add($this->getSingleValue($field, $item->id));
                     }
                 }
             }
+            
         }
         
         return $out;
@@ -229,7 +234,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
         }
         $inputfield = $this->modules->get($inputfield_class);
         if ($inputfield) {
-            $selector = $field->get('findPagesSelector');
+            $selector = $this->getSelector($page, $field, 'getInputfield');
             if ($selector && method_exists($inputfield, 'addOption')) {
                 foreach (wire('pages')->find($selector) as $item) {
                     $inputfield->addOption($item->id, $item->title);
@@ -237,6 +242,18 @@ class FieldtypePageIDs extends FieldtypeMulti {
             }
         }
         return $inputfield; 
+    }
+    
+    /**
+     * Return selector string for finding and validating selectable items
+     * 
+     * @param Page $page
+     * @param Field $field
+     * @param string $context
+     * @return string
+     */
+    public function ___getSelector(Page $page, Field $field, $context = null) {
+        return $field->get('findPagesSelector');
     }
     
     /**
