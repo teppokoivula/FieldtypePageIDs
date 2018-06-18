@@ -24,8 +24,9 @@ class FieldtypePageIDs extends FieldtypeMulti {
             'title' => 'Page IDs',
             'summary' => 'Field that stores Page IDs',
             'author' => 'Teppo Koivula',
-            'version' => '0.10.0',
+            'version' => '0.11.0',
             'requires' => 'ProcessWire>=3.0.98',
+            'autoload' => true,
         ];
     }
 
@@ -37,6 +38,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
         parent::init();
         $dir = dirname(__FILE__);
         require_once(__DIR__ . "/PageID.php"); 
+        $this->addHookAfter('FieldtypePage::getCompatibleFieldtypes', $this, 'hookFieldtypePageGetCompatibleFieldtypes');
     }
 
 	/**
@@ -290,7 +292,18 @@ class FieldtypePageIDs extends FieldtypeMulti {
      */
     public function ___getCompatibleFieldtypes(Field $field) {
         $fieldtypes = new Fieldtypes();
+        $fieldtypes->add($this);
+        $fieldtypes->add($this->wire('fieldtypes')->get('FieldtypePage'));
         return $fieldtypes;
+    }
+
+    /**
+     * Make FieldtypePage consider FieldtypePageIDs as a compatible Fieldtype
+     * 
+     * @param HookEvent $event
+     */
+    public function hookFieldtypePageGetCompatibleFieldtypes(HookEvent $event) {
+        $event->return->add($this);
     }
 
 }
