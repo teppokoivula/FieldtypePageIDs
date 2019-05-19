@@ -24,7 +24,7 @@ class FieldtypePageIDs extends FieldtypeMulti {
             'title' => 'Page IDs',
             'summary' => 'Field that stores Page IDs',
             'author' => 'Teppo Koivula',
-            'version' => '0.11.0',
+            'version' => '0.12.0',
             'requires' => 'ProcessWire>=3.0.98',
             'autoload' => true,
         ];
@@ -248,8 +248,13 @@ class FieldtypePageIDs extends FieldtypeMulti {
         } else if (method_exists($inputfield, 'addOption')) {
             $selector = $this->getSelector($page, $field, 'getInputfield');
             if ($selector) {
-                foreach (wire('pages')->find($selector) as $item) {
-                    $inputfield->addOption($item->id, $item->title);
+                try {
+                    $items = $this->wire('pages')->find($selector);
+                    foreach ($items as $item) {
+                        $inputfield->addOption($item->id, $item->title);
+                    }
+                } catch (WireException $e) {
+                    $this->error($this->_("Erroneous selector string defined for field \"{$field->name}\" – please check the value for syntax errors!"));
                 }
             }
         }
